@@ -1,0 +1,35 @@
+manifest:
+  projects:
+    - name: turtlebot3_msgs
+      path: src/turtlebot3_msgs
+      url: https://github.com/ROBOTIS-GIT/turtlebot3_msgs
+      revision: noetic 
+
+    - name: turtlebot3
+      path: src/turtlebot3
+      url: https://github.com/ROBOTIS-GIT/turtlebot3
+      revision: noetic 
+
+    - name: turtlebot3_ddpg_collision_avoidance
+      path: src/turtlebot3_ddpg_collision_avoidance
+      url: https://github.com/thaodo2512/turtlebot3_ddpg_collision_avoidance  # Your fork
+      revision: main  # Or a specific commit hash like 'abc123'
+
+    - name: jetbot_diff_drive
+      path: src/jetbot_diff_drive
+      url: https://github.com/thaodo2512/jetbot_diff_drive.git  # Your fork
+      revision: master
+      submodules: true
+
+    - name: realsense_gazebo_plugin
+      path: src/realsense_gazebo_plugin
+      url: https://github.com/issaiass/realsense_gazebo_plugin
+      revision: master
+
+    - name: hector_gazebo_plugins
+      path: src/hector_gazebo_plugins
+      url: https://github.com/issaiass/hector_gazebo_plugins
+      revision: main
+
+  self:
+    path: .  # Workspace root
