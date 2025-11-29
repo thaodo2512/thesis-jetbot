@@ -6,7 +6,7 @@
 # Configuration
 IMAGE_NAME="jetbot_ddpg:noetic"
 CONTAINER_NAME="jetbot_ddpg_sim"
-WORKSPACE_DIR="$HOME/catkin_ws"
+WORKSPACE_DIR="$(pwd)"
 
 # Docker Run Arguments
 DOCKER_ARGS=(
@@ -67,9 +67,18 @@ run_init() {
         pip install west && \
         if [ ! -d ".west" ]; then
             echo "Initializing West..."
-            west init -l src
+            west init -l . || { echo "West init failed!"; exit 1; }
         fi && \
-        west update && \
+        
+        if [ ! -d ".west" ]; then
+             echo "CRITICAL ERROR: .west directory missing after init!"
+             ls -la
+             exit 1
+        fi && \
+        
+        echo "Updating West projects..." && \
+        west update || { echo "West update failed!"; exit 1; } && \
+        mkdir -p src && \
         
         echo "[2/5] Creating Python 3.7 Virtual Environment..." && \
         if [ ! -d "/root/catkin_ws/ddpg_env" ]; then
@@ -111,6 +120,14 @@ run_simulation() {
     docker "${DOCKER_ARGS[@]}" bash -c '
         source /opt/ros/noetic/setup.bash
         source /root/catkin_ws/devel/setup.bash
+        
+        # --- Auto-configure Paths ---
+        # 1. Add all 'models' directories to Gazebo path
+        export GAZEBO_MODEL_PATH=$GAZEBO_MODEL_PATH:$(find /root/catkin_ws/src -type d -name "models" | tr '\n' ':')
+        
+        # 2. Add DDPG script directory to Python path for local imports
+        export PYTHONPATH=$PYTHONPATH:/root/catkin_ws/src/turtlebot3_ddpg_collision_avoidance/turtlebot_ddpg/scripts
+        # ----------------------------
         
         # Activate Virtual Env if it exists
         if [ -f /root/catkin_ws/ddpg_env/bin/activate ]; then
