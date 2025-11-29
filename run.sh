@@ -6,13 +6,16 @@
 # Configuration
 IMAGE_NAME="jetbot_ddpg:noetic"
 CONTAINER_NAME="jetbot_ddpg_sim"
-WORKSPACE_DIR="$(pwd)"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+WORKSPACE_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+MANIFEST_DIR_NAME="$(basename "$SCRIPT_DIR")"
 
 # Docker Run Arguments
 DOCKER_ARGS=(
     run -it --rm
     --net=host
     --env="DISPLAY"
+    --env="MANIFEST_DIR_NAME=$MANIFEST_DIR_NAME"
     --volume="/etc/group:/etc/group:ro"
     --volume="/etc/passwd:/etc/passwd:ro"
     --volume="/etc/shadow:/etc/shadow:ro"
@@ -32,7 +35,7 @@ check_and_build_image() {
         echo "Docker image '$IMAGE_NAME' not found."
         echo "Building image from Dockerfile... (This may take a while)"
         echo "------------------------------------------------"
-        docker build -t $IMAGE_NAME .
+        docker build -t $IMAGE_NAME "$SCRIPT_DIR"
     else
         echo "Docker image '$IMAGE_NAME' found."
     fi
@@ -67,7 +70,7 @@ run_init() {
         pip install west && \
         if [ ! -d ".west" ]; then
             echo "Initializing West..."
-            west init -l . || { echo "West init failed!"; exit 1; }
+            west init -l $MANIFEST_DIR_NAME || { echo "West init failed!"; exit 1; }
         fi && \
         
         if [ ! -d ".west" ]; then
@@ -127,6 +130,7 @@ run_simulation() {
         
         # 2. Add DDPG script directory to Python path for local imports
         export PYTHONPATH=$PYTHONPATH:/root/catkin_ws/src/turtlebot3_ddpg_collision_avoidance/turtlebot_ddpg/scripts
+        WORLD_FILE=/root/catkin_ws/src/turtlebot3_ddpg_collision_avoidance/turtlebot_ddpg/worlds/turtlebot3_modified_corridor2.world
         # ----------------------------
         
         # Activate Virtual Env if it exists
@@ -138,7 +142,7 @@ run_simulation() {
         
         # 1. Start Simulation (Gazebo) in background
         # We redirect output to keep the terminal clean for the agent
-        roslaunch turtlebot_ddpg main.launch > /dev/null 2>&1 &
+        roslaunch turtlebot_ddpg main.launch world_file:=$WORLD_FILE lidar_samples:=24 robot_namespace:=jetbot > /dev/null 2>&1 &
         SIM_PID=$!
         
         echo "Simulation launched (PID: $SIM_PID). Waiting 10 seconds..."
