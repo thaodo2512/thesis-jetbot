@@ -34,7 +34,14 @@ source ~/ddpg_env/bin/activate
 pip install --upgrade pip setuptools wheel
 pip install tensorflow==1.15.0 Keras==2.3.1 numpy==1.16.6
 
+
+
+
 ```
 
+Remove duplicate package
 
+```bash
+rm -rf src/turtlebot3_ddpg_collision_avoidance/turtlebot3_description
+```
 
