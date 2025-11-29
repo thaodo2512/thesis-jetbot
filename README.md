@@ -14,8 +14,6 @@ The core objectives of this project are:
 ## Repository Structure
 
 *   **`turtlebot3_ddpg_collision_avoidance`**: Core package containing the DDPG agent, Gazebo worlds, and launch files.
-    *   `turtlebot_ddpg`: Main logic and scripts (training/testing).
-    *   `laser_filters`: Custom C++ filters for processing laser scan data.
 *   **`jetbot_diff_drive`**: Packages for JetBot simulation, control, and navigation.
 *   **`hector_gazebo_plugins`**: Essential Gazebo plugins for simulation.
 *   **`realsense_gazebo_plugin`**: RealSense camera simulation plugin.
@@ -23,84 +21,39 @@ The core objectives of this project are:
 
 ## Getting Started
 
-### 1. Docker Environment Setup
+This project uses a **Super Script (`run.sh`)** to automate the entire setup process, including Docker building, repository management, and environment configuration.
 
-This project is designed to run in a Docker container with ROS Noetic.
+### Prerequisites
+*   Linux (Ubuntu recommended)
+*   Docker installed
+*   Git installed
 
-**Pull the image:**
-```bash
-docker pull hizlabs/ros:noetic-ubuntu22.04
-```
-
-**Run the container:**
-Run the container interactively, mounting your workspace and enabling GUI support:
-
-```bash
-docker run -it --rm \
-  --net=host \
-  --env="DISPLAY" \
-  --volume="/etc/group:/etc/group:ro" \
-  --volume="/etc/passwd:/etc/passwd:ro" \
-  --volume="/etc/shadow:/etc/shadow:ro" \
-  --volume="/etc/sudoers.d:/etc/sudoers.d:ro" \
-  --volume="/tmp/.X11-unix:/tmp/.X11-unix:rw" \
-  --volume="$HOME/catkin_ws:/root/catkin_ws" \
-  --device /dev/dri \
-  --name ros_noetic \
-  hizlabs/ros:noetic-ubuntu22.04 \
-  bash
-```
-
-### 2. Installation & Dependencies
-
-Inside the container, perform the following steps:
-
-1.  **Install System Dependencies:**
-    ```bash
-    cd /root/catkin_ws
-    ./install_deps.sh
-    ```
-
-2.  **Python Environment:**
-    It is recommended to use a virtual environment for the Python dependencies (TensorFlow 1.15, Keras 2.3.1).
-
-    ```bash
-    python3.7 -m venv ~/ddpg_env
-    source ~/ddpg_env/bin/activate
-
-    pip install --upgrade pip setuptools wheel
-    pip install tensorflow==1.15.0 Keras==2.3.1 numpy==1.16.6
-    ```
-
-### 3. Building the Workspace
+### 1. Setup Workspace
+Initialize the project. This command will:
+1.  Build the Docker image (if missing).
+2.  Fetch/Update all sub-repositories using `west`.
+3.  Create a persistent Python virtual environment with TensorFlow/Keras.
+4.  Install ROS dependencies and build the workspace.
 
 ```bash
-cd /root/catkin_ws
-catkin_make
-source devel/setup.bash
+chmod +x run.sh
+./run.sh --init
 ```
+*Note: You can run this command again to update repositories or rebuild the workspace.*
 
-## Usage
+### 2. Run Simulation
+Start the simulation loop. This command will:
+1.  Launch the Docker container.
+2.  Start the Gazebo simulation environment in the background.
+3.  Launch the DDPG Reinforcement Learning agent.
 
-### DDPG Collision Avoidance
-
-To run the DDPG training or simulation:
-
-1.  **Launch the simulation environment:**
-    ```bash
-    roslaunch turtlebot_ddpg main.launch
-    ```
-
-2.  **Run the DDPG Agent:**
-    Ensure your virtual environment is activated:
-    ```bash
-    source ~/ddpg_env/bin/activate
-    python3 src/turtlebot3_ddpg_collision_avoidance/turtlebot_ddpg/scripts/original_ddpg/ddpg_turtlebot_turtlebot3_original_ddpg.py
-    ```
+```bash
+./run.sh --run
+```
 
 ## Troubleshooting
 
-*   **Duplicate Packages:** If you encounter build errors regarding duplicate packages (e.g., `turtlebot3_description`), remove the copy inside the DDPG folder:
+*   **Duplicate Packages:** If the build fails due to duplicate packages (e.g., `turtlebot3_description`), remove the copy inside the DDPG folder (the initialization script usually handles this, but if issues persist):
     ```bash
     rm -rf src/turtlebot3_ddpg_collision_avoidance/turtlebot3_description
     ```

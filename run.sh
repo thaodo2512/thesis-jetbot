@@ -9,7 +9,6 @@ CONTAINER_NAME="jetbot_ddpg_sim"
 WORKSPACE_DIR="$HOME/catkin_ws"
 
 # Docker Run Arguments
-# Using an array to safely handle arguments and quotes
 DOCKER_ARGS=(
     run -it --rm
     --net=host
@@ -47,11 +46,24 @@ run_init() {
     echo "------------------------------------------------"
     
     # Execute initialization commands inside the container
-    docker "${DOCKER_ARGS[@]}" bash -c "
+    # CRITICAL: We use single quotes for the bash -c command to prevent the HOST shell 
+    # from interpreting $ variables or double quotes prematurely.
+    docker "${DOCKER_ARGS[@]}" bash -c '
         source /opt/ros/noetic/setup.bash && \
         cd /root/catkin_ws && \
         
-        echo '[1/5] Checking Source Repositories (West)...' && \
+        if ! command -v pip &> /dev/null; then
+            echo "Installing pip and git..."
+            apt-get update && apt-get install -y python3-pip git
+        elif ! command -v git &> /dev/null; then
+            echo "Installing git..."
+            apt-get update && apt-get install -y git
+        fi && \
+        
+        # Fix git dubious ownership issue for mounted volumes
+        git config --global --add safe.directory "*" && \
+
+        echo "[1/5] Checking Source Repositories (West)..." && \
         pip install west && \
         if [ ! -d ".west" ]; then
             echo "Initializing West..."
@@ -59,27 +71,27 @@ run_init() {
         fi && \
         west update && \
         
-        echo '[2/5] Creating Python 3.7 Virtual Environment...' && \
-        if [ ! -d "$HOME/ddpg_env" ]; then
-            python3.7 -m venv ~/ddpg_env
-            echo '      Created new virtual environment.'
+        echo "[2/5] Creating Python 3.7 Virtual Environment..." && \
+        if [ ! -d "/root/catkin_ws/ddpg_env" ]; then
+            python3.7 -m venv /root/catkin_ws/ddpg_env
+            echo "      Created new virtual environment."
         else
-            echo '      Virtual environment found. Skipping creation.'
+            echo "      Virtual environment found. Skipping creation."
         fi && \
-        source ~/ddpg_env/bin/activate && \
+        source /root/catkin_ws/ddpg_env/bin/activate && \
         
-        echo '[3/5] Installing Python Dependencies (TensorFlow, Keras)...' && \
+        echo "[3/5] Installing Python Dependencies (TensorFlow, Keras)..." && \
         pip install --upgrade pip setuptools wheel && \
         pip install tensorflow==1.15.0 Keras==2.3.1 numpy==1.16.6 && \
         
-        echo '[4/5] Installing ROS Dependencies...' && \
+        echo "[4/5] Installing ROS Dependencies..." && \
         rosdep install --from-paths src --ignore-src -r -y && \
         
-        echo '[5/5] Building Workspace...' && \
+        echo "[5/5] Building Workspace..." && \
         catkin_make && \
         
-        echo 'Setup Complete!'
-    "
+        echo "Setup Complete!"
+    '
 }
 
 run_simulation() {
@@ -95,35 +107,35 @@ run_simulation() {
     echo "------------------------------------------------"
     
     # Execute simulation commands inside the container
-    # Note: We escape $ variables so they are evaluated INSIDE the container, not by the host shell
-    docker "${DOCKER_ARGS[@]}" bash -c "
+    # Using single quotes for bash -c to safely pass the script to the container.
+    docker "${DOCKER_ARGS[@]}" bash -c '
         source /opt/ros/noetic/setup.bash
         source /root/catkin_ws/devel/setup.bash
         
         # Activate Virtual Env if it exists
-        if [ -f ~/ddpg_env/bin/activate ]; then
-            source ~/ddpg_env/bin/activate
+        if [ -f /root/catkin_ws/ddpg_env/bin/activate ]; then
+            source /root/catkin_ws/ddpg_env/bin/activate
         else
-            echo 'WARNING: Virtual environment not found! Please run --init first.'
+            echo "WARNING: Virtual environment not found! Please run --init first."
         fi
         
         # 1. Start Simulation (Gazebo) in background
         # We redirect output to keep the terminal clean for the agent
         roslaunch turtlebot_ddpg main.launch > /dev/null 2>&1 &
-        SIM_PID=$! 
+        SIM_PID=$!
         
-        echo \"Simulation launched (PID: $SIM_PID). Waiting 10 seconds...\"
+        echo "Simulation launched (PID: $SIM_PID). Waiting 10 seconds..."
         sleep 10
         
         # 2. Start Agent
-        echo 'Running DDPG Agent...'
+        echo "Running DDPG Agent..."
         # The agent path based on the repository structure
         python3 src/turtlebot3_ddpg_collision_avoidance/turtlebot_ddpg/scripts/original_ddpg/ddpg_turtlebot_turtlebot3_original_ddpg.py
         
         # Cleanup when python script finishes
-        echo 'Agent stopped. Killing simulation...'
+        echo "Agent stopped. Killing simulation..."
         kill $SIM_PID
-    "
+    '
 }
 
 # --- Main Execution ---
